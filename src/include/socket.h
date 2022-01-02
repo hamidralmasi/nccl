@@ -16,6 +16,15 @@
 #include <net/if.h>
 #include "utils.h"
 
+#include <sstream>
+#include <iostream>
+#include <ctime>
+#include <iomanip>
+#include <cstdlib>
+#include <sys/stat.h>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+
 #define MAX_IFS 16
 #define MAX_IF_NAME_SIZE 16
 #define SLEEP_INT            1000 // connection retry sleep interval in usec
@@ -29,6 +38,60 @@ union socketAddress {
   struct sockaddr_in sin;
   struct sockaddr_in6 sin6;
 };
+
+/*
+#####################
+##### <LOGGING> #####
+#####################
+*/
+static std::string _current_time_and_date() {
+  auto now = std::chrono::system_clock::now();
+  auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&in_time_t), "%Y%m%d-%H%M%S");
+  return ss.str();
+}
+
+static std::string _get_logpath() {
+  static auto _user_home =  std::string(std::getenv("HOME"));
+  std::string _timestamp = _current_time_and_date();
+  std::string _log_dir = _user_home + "/horovod_logs/nccl_events/";
+  bool _flag = mkdir(_log_dir.c_str(), 0777);
+  std::cout << "create dir: " << _log_dir << ", status: " << _flag << "\n";
+  static std::string _logfile = _log_dir
+    + "nccl-" +  _timestamp 
+    + ".log";
+  std::cout << "logfile" << _logfile << "\n";
+  return _logfile;
+}
+
+static std::shared_ptr<spdlog::logger> _get_logger() {
+  spdlog::set_pattern("%v");
+  auto _logger = spdlog::basic_logger_mt("nccl_logger", _get_logpath());
+  return _logger;
+}
+
+static std::string _fmt_msg(std::string event) {
+  long timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();
+  std::stringstream _ss;
+  _ss << event <<  "," << timestamp;
+  return _ss.str();
+}
+
+static std::shared_ptr<spdlog::logger> _event_logger;
+
+static void check_logger() {
+  if (!_event_logger) {
+    _event_logger = _get_logger();
+  }
+}
+/*
+#####################
+##### </LOGGING> ####
+#####################
+*/
 
 /* Format a string representation of a (union socketAddress *) socket address using getnameinfo()
  *
@@ -416,6 +479,11 @@ static ncclResult_t socketProgressOpt(int op, int fd, union socketAddress *addr,
   int bytes = 0;
   char* data = (char*)ptr;
   char line[SOCKET_NAME_MAXLEN+1];
+
+  check_logger();
+  _event_logger->info(_fmt_msg("NcclSocketOp-START"));
+
+
   do {
     if (op == NCCL_SOCKET_RECV) bytes = recv(fd, data+(*offset), size-(*offset), block ? 0 : MSG_DONTWAIT);
     if (op == NCCL_SOCKET_SEND) bytes = send(fd, data+(*offset), size-(*offset), block ? 0 : MSG_DONTWAIT);
@@ -433,6 +501,7 @@ static ncclResult_t socketProgressOpt(int op, int fd, union socketAddress *addr,
     }
     (*offset) += bytes;
   } while (bytes > 0 && (*offset) < size);
+  _event_logger->info(_fmt_msg("NcclSocketOp-DONE"));
   return ncclSuccess;
 }
 
