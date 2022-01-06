@@ -480,8 +480,8 @@ static ncclResult_t socketProgressOpt(int op, int fd, union socketAddress *addr,
   char* data = (char*)ptr;
   char line[SOCKET_NAME_MAXLEN+1];
 
-  uint64_t ns_timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-  INFO(NCCL_NET, "NcclSocketOp-START %s %ld", socketToString(addr, line), ns_timestamp);
+  uint64_t timestamp_start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  //INFO(NCCL_NET, "NcclSocketOp-START %s %ld", socketToString(addr, line), ns_timestamp);
 
   //check_logger();
   //_event_logger->info(_fmt_msg("NcclSocketOp-START"));
@@ -506,8 +506,9 @@ static ncclResult_t socketProgressOpt(int op, int fd, union socketAddress *addr,
   } while (bytes > 0 && (*offset) < size);
   
   //_event_logger->info(_fmt_msg("NcclSocketOp-DONE"));
-  ns_timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-  INFO(NCCL_NET, "NcclSocketOp-END %s %ld", socketToString(addr, line), ns_timestamp);
+  uint64_t timestamp_end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  uint64_t duration = timestamp_end - timestamp_start;
+  INFO(NCCL_NET, "::::%ld,%ld",timestamp_start, duration);
   
   return ncclSuccess;
 }
