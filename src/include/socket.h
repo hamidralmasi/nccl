@@ -508,7 +508,7 @@ static ncclResult_t socketProgressOpt(int op, int fd, union socketAddress *addr,
   //_event_logger->info(_fmt_msg("NcclSocketOp-DONE"));
   uint64_t timestamp_end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
   uint64_t duration = timestamp_end - timestamp_start;
-  INFO(NCCL_NET, "::::%ld,%ld",timestamp_start, duration);
+  INFO(NCCL_NET, "::%ld,%ld",timestamp_start, duration);
   
   return ncclSuccess;
 }
