@@ -198,9 +198,7 @@ void* persistentSocketThread(void *args_) {
         for (int j=0; j<nSocksPerThread; j++) {
           struct ncclSocketTask* r = myQueue->tasks+i+j;
           if (r != NULL && r->used == 1 && r->offset < r->size) {
-            // r->result = socketProgress(r->op, r->fd, r->addr, r->data, r->size, &r->offset);
-            r->result = ncclSuccess;
-            r->offset = r->size;
+            r->result = socketProgress(r->op, r->fd, r->addr, r->data, r->size, &r->offset);
             if (r->result != ncclSuccess) {
               WARN("NET/Socket : socket progress error");
               return NULL;
@@ -404,31 +402,30 @@ ncclResult_t ncclSocketGetTask(struct ncclSocketComm* comm, int op, void* data, 
 }
 
 ncclResult_t ncclSocketTest(void* request, int* done, int* size) {
-  *done = 1;
-  return ncclSuccess;
+  *done = 0;
   struct ncclSocketRequest *r = (struct ncclSocketRequest*)request;
   if (r == NULL) {
     WARN("NET/Socket : test called with NULL request");
     return ncclInternalError;
   }
   if (r->used == 1) { /* try to send/recv size */
-    // int data = r->size;
-    // int offset = 0;
-    // NCCLCHECK(socketProgress(r->op, r->ctrlFd, r->addr, &data, sizeof(int), &offset));
-    
-    // if (offset == 0) return ncclSuccess; /* Not ready -- retry later */
+    int data = r->size;
+    int offset = 0;
+    NCCLCHECK(socketProgress(r->op, r->ctrlFd, r->addr, &data, sizeof(int), &offset));
+
+    if (offset == 0) return ncclSuccess; /* Not ready -- retry later */
 
     // Not sure we could ever receive less than 4 bytes, but just in case ...
-    // if (offset < sizeof(int)) NCCLCHECK(socketWait(r->op, r->ctrlFd, r->addr, &data, sizeof(int), &offset));
+    if (offset < sizeof(int)) NCCLCHECK(socketWait(r->op, r->ctrlFd, r->addr, &data, sizeof(int), &offset));
 
     // Check size is less or equal to the size provided by the user
-    // if (r->op == NCCL_SOCKET_RECV && data > r->size) {
-    //  char line[SOCKET_NAME_MAXLEN+1];
-    //  WARN("NET/Socket : peer %s message truncated : receiving %d bytes instead of %d", socketToString(r->addr, line), data, r->size);
-    //  return ncclInternalError;
-    // }
-    // r->size = data;
-    // r->offset = 0;
+    if (r->op == NCCL_SOCKET_RECV && data > r->size) {
+      char line[SOCKET_NAME_MAXLEN+1];
+      WARN("NET/Socket : peer %s message truncated : receiving %d bytes instead of %d", socketToString(r->addr, line), data, r->size);
+      return ncclInternalError;
+    }
+    r->size = data;
+    r->offset = 0;
     r->used = 2; // done exchanging size
     // divide into subtasks
     int chunkOffset = 0, i = 0;
@@ -462,7 +459,7 @@ ncclResult_t ncclSocketTest(void* request, int* done, int* size) {
       }
     } else { // progress request using main thread
       if (r->offset < r->size) {
-        // NCCLCHECK(socketProgress(r->op, r->ctrlFd, r->addr, r->data, r->size, &r->offset));
+        NCCLCHECK(socketProgress(r->op, r->ctrlFd, r->addr, r->data, r->size, &r->offset));
       }
       if (r->offset == r->size) {
         if (size) *size = r->size;

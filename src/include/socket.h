@@ -525,13 +525,13 @@ static ncclResult_t socketWait(int op, int fd, union socketAddress *addr, void* 
 
 static ncclResult_t socketSend(int fd, union socketAddress *addr, void* ptr, int size) {
   int offset = 0;
-  NCCLCHECK(socketWait(NCCL_SOCKET_SEND, fd, addr, ptr, size, &offset));
+  //NCCLCHECK(socketWait(NCCL_SOCKET_SEND, fd, addr, ptr, size, &offset));
   return ncclSuccess;
 }
 
 static ncclResult_t socketRecv(int fd, union socketAddress *addr, void* ptr, int size) {
   int offset = 0;
-  NCCLCHECK(socketWait(NCCL_SOCKET_RECV, fd, addr, ptr, size, &offset));
+  //NCCLCHECK(socketWait(NCCL_SOCKET_RECV, fd, addr, ptr, size, &offset));
   return ncclSuccess;
 }
 
