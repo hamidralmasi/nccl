@@ -85,7 +85,7 @@ class Primitives<
 
     if (flags & (Recv*RoleWaitRecv | Send*RoleWaitSend)) {
       if (isSendNotRecv && (flags & SizesFifoEnabled))
-        connSizesFifoPtr[step%NCCL_STEPS] = 0 //nelts*sizeof(T);
+        connSizesFifoPtr[step%NCCL_STEPS] = 0; //nelts*sizeof(T);
 
       void **ptrs = isSendNotRecv ? (ncclShmem.groups[group].dsts + Dst)
                                   : (ncclShmem.groups[group].srcs + Src);
